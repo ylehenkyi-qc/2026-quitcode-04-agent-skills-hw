@@ -15,7 +15,7 @@
 |---|---|---|
 | `vercel-react-best-practices` | Project (`.claude/skills/`) | видно одразу після встановлення, коміт `4a238ee` |
 | `building-client-form` | Project (`.claude/skills/`) | створено в Task B, коміт `dff9ec9`; спрацював у прогоні (виклик читання `SKILL.md`) |
-| `integrating-n8n-webhooks` | — | ще не створено (Task C) |
+| `integrating-n8n-webhooks` | Project (`.claude/skills/`) | створено в Task C; спрацювання перевіряється в Task D (прогін B) |
 
 - Особисті скіли, які теж видно (`~/.claude/skills/`…), і чи можуть вони вплинути на перевірки: окремо `~/.claude/skills/` не перевірявся; список сесії показав лише вбудовані системні скіли Cursor/Claude Code (`dataviz`, `artifact-design`, `artifact-diagramming`, `artifact-capabilities`, `update-config`, `keybindings-help`, `code-review`, `simplify`, `fewer-permission-prompts`, `loop`, `schedule`, `claude-api`, `workflow-authoring`, `run`, `init`, `security-review`, `skill-creator`, `docs`, `docx`, `pdf`, `pptx`, `xlsx`, `google-workspace`, `import-memory`, `morning`) — вони не є проєктними й не мали б впливати на перевірки Task B/C/D.
 
@@ -57,33 +57,54 @@
 
 ## Task C — `integrating-n8n-webhooks`
 
-*(ще не виконано)*
-
 Тут скіл лише пакують. Застосовує його агент у прогоні **B** (Task D) — доказ спрацювання, журнал
 мока й час відповіді форми — у `docs/ab-validation.md`.
 
-- Що лишили в `SKILL.md`, а що винесли в `references/` (і чому): <…>
-- Правила зупинки — перелік: <…>
-- SHA коміту зі скілом (BASE для Task D): <…>
-- Що скіл змінив у собі після прогонів (коміти й чому): <… або «нічого»>
+- Що лишили в `SKILL.md`, а що винесли в `references/` (і чому): `SKILL.md` містить лише те, що агент має **зробити** — коротко: де живе код виклику, хто викликає, режим відповіді, порядок обробки колбеку (10 кроків, названі, але без повного тексту кожного), чекліст, правила зупинки, verify. Деталі й «чому» (повний текст 12 розділів записки команди) розкладено на 6 файлів `references/`: `outgoing-contract.md` (env, запит, заголовки, конверт, таймаут/повтори), `response-modes.md` (режими Webhook-вузла, тестовий/production URL), `callback-handling.md` (10 кроків обробки колбеку по порядку, ідемпотентність), `n8n-setup.md` (налаштування вузлів n8n словами), `logging-and-limits.md` (журнали, ліміти), `known-pitfalls.md` (розбіжності документація/код). З `SKILL.md` на кожен `references/`-файл — пряме посилання, один рівень, без ланцюжків.
+- Правила зупинки — перелік:
+  - незрозуміло, чи воркфлоу конкретної події швидкий чи довгий (вибір режиму відповіді)
+  - немає контракту на нову подію (`event`, форма `data`)
+  - потрібно тимчасово використати тестовий URL для налагодження
+  - секрет (`N8N_WEBHOOK_TOKEN`/`N8N_CALLBACK_SECRET`) потрібно передати кудись поза серверним модулем
+  - синхронне очікування довгого воркфлоу здається простішим рішенням «для MVP»
+- SHA коміту зі скілом (BASE для Task D): <буде записано після коміту нижче>
+- Що скіл змінив у собі після прогонів (коміти й чому): ще не застосовувалось (Task D попереду)
 
 **`check-contract.mjs` на коді `main`** (id + PASS/FAIL, код виходу):
 
-<вивід>
+C1 FAIL — тестовий URL n8n (/webhook-test/) не потрапляє в код чи .env.example
+.env.example:6 N8N_WEBHOOK_URL=http://127.0.0.1:5678/webhook-test/lead-created
+C2 PASS — жодна змінна N8N_* не має префіксу NEXT_PUBLIC_
+C3 PASS — прямі виклики n8n-вебхука відсутні поза lib/n8n/client.ts
+C4 FAIL — виклик n8n використовує AbortSignal.timeout
+lib\n8n\client.ts:0 lib/n8n/client.ts не знайдено
+C5 FAIL — колбек-роут читає сирий текст і звіряє підпис через timingSafeEqual
+app\api\n8n[event]\route.ts:0 колбек-роут не знайдено
+
+3 FAIL
+exit=1
 
 
-**За бажанням: що скрипт побачив на навмисно поганому коді** (яку перевірку ламали, що вона
-сказала). До рубрики це не входить, але бали знімає скрипт, який завжди PASS:
+**Що скрипт побачив на навмисно поганому коді** (перевірка, що скрипт справді щось перевіряє, а не завжди PASS): у тимчасовій теці (`/tmp/bad-callback-test/app/api/n8n/[event]/route.ts`) з навмисним `req.json()` до перевірки підпису і `signature === "expected"` замість `timingSafeEqual`:
 
-<вивід>
+C1 PASS — тестовий URL n8n (/webhook-test/) не потрапляє в код чи .env.example
+C2 PASS — жодна змінна N8N_* не має префіксу NEXT_PUBLIC_
+C3 PASS — прямі виклики n8n-вебхука відсутні поза lib/n8n/client.ts
+C4 FAIL — виклик n8n використовує AbortSignal.timeout
+lib\n8n\client.ts:0 lib/n8n/client.ts не знайдено
+C5 FAIL — колбек-роут читає сирий текст і звіряє підпис через timingSafeEqual
+app\api\n8n[event]\route.ts:0 тіло не читається як сирий текст (.text())
+app\api\n8n[event]\route.ts:0 підпис звіряється через === замість timingSafeEqual
+
+3 FAIL
+exit=1
 
 
-**`check-contract.mjs` на фінальному коді** (після перенесення прогону B — 0 FAIL):
+C5 правильно спіймав обидва навмисно закладені порушення — перевірка справді працює, а не завжди PASS. Тестову теку видалено після перевірки.
 
-<вивід>
+**`check-contract.mjs` на фінальному коді** (після перенесення прогону B — 0 FAIL): <буде заповнено в Task D>
 
-
-**Додатково (за бажанням):** матриця колбеків (`send-signed-callback.mjs`): випадок → очікуваний код → отриманий код.
+**Додатково (за бажанням):** матриця колбеків (`send-signed-callback.mjs`) — не робилось (бонусний пункт).
 
 ## Task E3 (бонус) — ті самі скіли в Cursor
 
