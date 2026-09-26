@@ -2,10 +2,11 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser, getLead, getWorkspace } from "@/lib/data";
-import { parseLeadForm, type LeadFormField } from "@/lib/lead-form";
+import { parseLeadForm, parseLeadNoteForm, type LeadFormField } from "@/lib/lead-form";
 import type { LeadStatus } from "@/lib/types";
 
 const PUBLIC_FORM_WORKSPACE_ID = "ws_studio_nova";
@@ -96,5 +97,35 @@ export async function deleteLead(id: string): Promise<LeadMutationState> {
 
   await db.deleteLead(id);
   revalidatePath("/dashboard");
+  return { status: "ok" };
+}
+
+export type AddLeadNoteState =
+  | { status: "idle" }
+  | { status: "not_found" }
+  | { status: "forbidden" }
+  | { status: "invalid"; error: string; value: string }
+  | { status: "ok" };
+
+export async function addLeadNote(
+  id: string,
+  _prevState: AddLeadNoteState,
+  formData: FormData,
+): Promise<AddLeadNoteState> {
+  const check = await assertLeadInUserWorkspace(id);
+  if (!check.ok) return check.state;
+
+  const parsed = parseLeadNoteForm(formData);
+  if (!parsed.ok) {
+    return { status: "invalid", error: parsed.error, value: parsed.value };
+  }
+
+  await db.appendLeadNote(id, parsed.note);
+  revalidatePath(`/dashboard/leads/${id}`);
+
+  after(async () => {
+    await logAudit("lead.note_added", id);
+  });
+
   return { status: "ok" };
 }
