@@ -2,7 +2,7 @@
 // Статична перевірка коду проєкту на відповідність контракту integrating-n8n-webhooks.
 // Node без залежностей: лише вбудовані модулі.
 
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, relative, extname } from "node:path";
 import { execSync } from "node:child_process";
 
@@ -63,16 +63,6 @@ function collectFiles(root) {
   return files;
 }
 
-function getChangedLineSet(root, ref, filePath) {
-  // Повертає Set номерів змінених/доданих рядків файлу відносно ref, або null
-  // якщо файл новий (тоді перевіряємо весь файл) чи git недоступний.
-  try {
-    const relPath = relative(root, filePath).split(require ? "\\" : "/").join("/");
-  } catch {
-    /* noop */
-  }
-  return null; // спрощена реалізація: --changed-since звужує лише список файлів
-}
 
 function getChangedFiles(root, ref) {
   try {
