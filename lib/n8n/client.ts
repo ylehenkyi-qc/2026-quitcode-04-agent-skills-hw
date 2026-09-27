@@ -3,14 +3,14 @@ import "server-only";
 const REQUEST_TIMEOUT_MS = 10_000;
 const RETRY_DELAYS_MS = [1_000, 3_000];
 
-export type N8nEvent = "quote-request";
+export type N8nEvent = "quote-request" | "lead-created";
 
 type CallN8nWorkflowInput = {
   event: N8nEvent;
   data: Record<string, unknown>;
   idempotencyKey: string;
   correlationId: string;
-  callbackUrl: string;
+  callbackUrl?: string;
 };
 
 function sleep(ms: number) {
@@ -54,7 +54,7 @@ export async function callN8nWorkflow(input: CallN8nWorkflowInput): Promise<void
     version: 1,
     event: input.event,
     data: input.data,
-    callbackUrl: input.callbackUrl,
+    ...(input.callbackUrl ? { callbackUrl: input.callbackUrl } : {}),
   });
   const headers: HeadersInit = {
     "content-type": "application/json",

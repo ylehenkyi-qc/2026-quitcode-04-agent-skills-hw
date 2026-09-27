@@ -163,7 +163,7 @@ function main() {
       if (f === clientPath) continue;
       if (!f.startsWith(join(root, "app")) && !f.startsWith(join(root, "components"))) continue;
       const content = readSafe(f);
-      const hits = findLines(content, /N8N_WEBHOOK_BASE_URL|fetch\([^)]*webhook\//i);
+      const hits = findLines(content, /N8N_WEBHOOK[A-Z_]*_URL/);
       for (const h of hits) failures.push({ file: f, line: h.line, text: h.text });
     }
     report("C3", "прямі виклики n8n-вебхука відсутні поза lib/n8n/client.ts", failures);
